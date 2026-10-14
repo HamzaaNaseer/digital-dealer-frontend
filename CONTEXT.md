@@ -20,5 +20,5 @@ This is the frontend for "Luna," a B2B landscape/hardscape materials dealer port
 - Guest + authenticated quotation flow lives in `src/components/QuoteDrawer.tsx` + `src/pages/products/ProductFinderPage.tsx`
 
 ## Known gaps / things to watch
-- Some natural-stone product colors in the catalog still have no photo (only ~40 of the full color range were supplied by the client at time of writing) — expect placeholder swatches on those until more photos arrive
+- The product catalog is being rebuilt from an updated source file; existing products will be removed and re-added. Don't assume current product/image data reflects what's about to exist.
 - Pricing math (`quantityMode`, skid/piece breakdown, handling fee, volume discounts) is mirrored server-side in the backend for quote submission — don't change frontend pricing logic without checking `quote-calculator.ts` on the backend stays in sync
