@@ -1,9 +1,20 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import type { ProductCollection } from "../lib/api";
+import type { ProductCollection, ProductVariant } from "../lib/api";
 import { handlingRate } from "../config/productCatalog";
 import type { QuoteItem } from "../types/quote";
 import { formatCad, swatchColorFor, unitAbbr, unitLabel } from "../utils/format";
+
+// Falls back to deriving coverage-per-piece from coveragePerSkid/piecesPerSkid
+// when the source data doesn't give it directly, instead of silently
+// assuming 1 (which was wrong for both the table display and quote math).
+function coveragePerPieceFor(packSize: ProductVariant["packSize"]): number | null {
+  if (packSize?.coveragePerPiece) return packSize.coveragePerPiece;
+  if (packSize?.coveragePerSkid && packSize?.piecesPerSkid) {
+    return packSize.coveragePerSkid / packSize.piecesPerSkid;
+  }
+  return null;
+}
 
 export function ProductDetail({
   collection,
@@ -21,8 +32,14 @@ export function ProductDetail({
     variant.unit === "sqf" || variant.unit === "lft" ? "coverage" : "pieces";
   const hasPricing = variant.price !== null;
   const price = variant.price ?? 0;
-  const coveragePerPiece = variant.packSize?.coveragePerPiece ?? 1;
+  const coveragePerPiece = coveragePerPieceFor(variant.packSize) ?? 1;
   const piecesPerSkid = variant.packSize?.piecesPerSkid ?? Infinity;
+  const showCoveragePerSkidColumn = collection.variants.some(
+    (item) => item.packSize?.coveragePerSkid
+  );
+  const showPiecesPerSkidColumn = collection.variants.some(
+    (item) => item.packSize?.piecesPerSkid
+  );
   const hasSkidData = Number.isFinite(piecesPerSkid);
   const { color: swatchColor } = swatchColorFor(collection.colorName ?? collection.name);
   const quantity = Number.parseFloat(quantityInput) || 0;
@@ -148,8 +165,10 @@ export function ProductDetail({
                   <tr>
                     <th aria-label="Selected"></th>
                     <th>Size</th>
-                    <th>{unitAbbr(variant.unit).toUpperCase()} / skid</th>
-                    <th>PCS / skid</th>
+                    {showCoveragePerSkidColumn ? (
+                      <th>{unitAbbr(variant.unit).toUpperCase()} / skid</th>
+                    ) : null}
+                    {showPiecesPerSkidColumn ? <th>PCS / skid</th> : null}
                     <th>Trade price</th>
                   </tr>
                 </thead>
@@ -174,16 +193,22 @@ export function ProductDetail({
                       </td>
                       <td>
                         <strong>{item.size ?? item.label}</strong>
-                        <span>
-                          {item.sizeMM ?? ""} -{" "}
-                          {item.packSize?.coveragePerPiece ?? 1} {unitAbbr(item.unit)}
-                          /pc
-                        </span>
+                        {coveragePerPieceFor(item.packSize) ? (
+                          <span>
+                            {item.sizeMM ?? ""} -{" "}
+                            {coveragePerPieceFor(item.packSize)} {unitAbbr(item.unit)}
+                            /pc
+                          </span>
+                        ) : null}
                       </td>
-                      <td>
-                        {item.packSize?.coveragePerSkid ?? "-"} {unitAbbr(item.unit)}
-                      </td>
-                      <td>{item.packSize?.piecesPerSkid ?? "-"} pcs</td>
+                      {showCoveragePerSkidColumn ? (
+                        <td>
+                          {item.packSize?.coveragePerSkid ?? "-"} {unitAbbr(item.unit)}
+                        </td>
+                      ) : null}
+                      {showPiecesPerSkidColumn ? (
+                        <td>{item.packSize?.piecesPerSkid ?? "-"} pcs</td>
+                      ) : null}
                       <td>
                         {item.price !== null ? (
                           <>
